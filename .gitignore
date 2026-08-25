@@ -1,4 +1,5 @@
 node_modules/
+readme.md
 
 npm-debug.log*
 yarn-debug.log*
