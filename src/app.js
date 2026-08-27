@@ -5,7 +5,7 @@ const User = require("./models/User");
 const app = express();
 app.use(express.json());
 // console.log("process.env.MONGO_URI", process.env.MONGO_URI);
-app.post("/signup", async (req, res)=>{
+app.post("/signup", async (req, res) => {
     // const userObject = {
     //     firstName: req.body.firstName,
     //     lastName: req.body.lastName,
@@ -15,19 +15,19 @@ app.post("/signup", async (req, res)=>{
     //     gender: req.body.gender
     // };
     const user = new User(req.body);
-    user.save().then((user)=>{
+    user.save().then((user) => {
         res.send(user);
-    
-    }).catch((err)=>{
+
+    }).catch((err) => {
         res.status(500).send(err);
     });
 
 });
 
-app.get("/user", async (req, res)=>{
+app.get("/user", async (req, res) => {
     const email = req.body.email;
-    const user = await User.findOne({email: email});
-    if(!user){
+    const user = await User.findOne({ email: email });
+    if (!user) {
         res.status(404).send("user not found");
     } else {
         res.send(user);
@@ -67,49 +67,58 @@ app.get("/user", async (req, res)=>{
 // });
 
 // with .then and .catch
-app.get("/feed", async (req, res)=>{
-    User.find().then((users)=>{
+app.get("/feed", async (req, res) => {
+    User.find().then((users) => {
         if (users.length === 0) {
             return res.status(404).send({
                 message: "No users found"
             });
-        }else{
+        } else {
             res.status(200).send(users);
-        }}).catch((err)=>{
-            res.status(500).send(err);
-        });
-    });
-
-// delete a user from database using user id
-app.delete("/user", async (req, res)=>{
-    const userId = req.body.userId;
-    // User.findByIdAndDelete(_id:userId)
-    //Below is the short form of above code, we can use either of them
-    User.findByIdAndDelete(userId).then((user)=>{
-        if(!user){
-            return res.status(404).send({
-                message: "User not found"
-            });
-        }else{
-            res.status(200).send({
-                message: "User deleted successfully"
-            });
         }
-    }).catch((err)=>{
+    }).catch((err) => {
         res.status(500).send(err);
     });
 });
 
-app.patch("/user", async (req, res)=>{
+// delete a user from database using user id
+app.delete("/user", async (req, res) => {
     const userId = req.body.userId;
+    // User.findByIdAndDelete(_id:userId)
+    //Below is the short form of above code, we can use either of them
+    User.findByIdAndDelete(userId).then((user) => {
+        if (!user) {
+            return res.status(404).send({
+                message: "User not found"
+            });
+        } else {
+            res.status(200).send({
+                message: "User deleted successfully"
+            });
+        }
+    }).catch((err) => {
+        res.status(500).send(err);
+    });
+});
+
+app.patch("/user/:userId", async (req, res) => {
+    const userId = req.params.userId;
     const updateData = req.body;
-   try{
-    const user = await User.findByIdAndUpdate(userId, updateData)
-    console.log("user", user);
-    if(!user){
-        return res.status(404).send("User not found");}
-    res.status(200).send("User updated successfully");
-   } catch(err){
+    try {
+        const ALLOWED_UPDATES = ["userId", "photoUrl", "about", "gender", "age", "skills"];
+        const isUpdateAllowed = Object.keys(updateData).every((update) => ALLOWED_UPDATES.includes(update));
+        if (!isUpdateAllowed) {
+            return res.status(400).send("Invalid updates");
+        }
+        const user = await User.findByIdAndUpdate(userId, updateData, {
+            runValidators: true, // this will run the validators defined in the schema for the fields being updated
+        })
+        // console.log("user", user);
+        if (!user) {
+            return res.status(404).send("User not found");
+        }
+        res.status(200).send("User updated successfully");
+    } catch (err) {
         res.status(500).send(err);
     };
 });
@@ -117,7 +126,7 @@ app.patch("/user", async (req, res)=>{
 
 connectDB().then(() => {
     console.log("Database connected successfully");
-    app.listen(3000,()=>console.log("app is running on port 3000"));
+    app.listen(3000, () => console.log("app is running on port 3000"));
 
 }).catch((err) => {
     console.log("Database connection failed", err);
