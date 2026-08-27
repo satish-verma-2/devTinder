@@ -1,32 +1,55 @@
 const express = require("express");
+const connectDB = require("./config/database");
+const User = require("./models/User");
 const app = express();
+app.use(express.json());
+app.post("/signup", async (req, res)=>{
+    // const userObject = {
+    //     firstName: req.body.firstName,
+    //     lastName: req.body.lastName,
+    //     email: req.body.email,
+    //     password: req.body.password,
+    //     age: req.body.age,
+    //     gender: req.body.gender
+    // };
+    const user = new User(req.body);
+    user.save().then((user)=>{
+        res.send(user);
+    
+    }).catch((err)=>{
+        res.status(500).send(err);
+    });
 
-app.use("/user", (req, res, next)=>{
-    console.log("this is second middleware");
-    next();
-    res.send({firstName:'satish', lastName:'verma'});
-}, (req, res, next)=>{
-    console.log("this is second middleware");
-    res.send("this is second middleware");
-},(req, res, next)=>{
-    console.log("this is third middleware");
-    res.send("this is third middleware");
-},(req, res, next)=>{
-    console.log("this is fourth middleware");
-    res.send("this is fourth middleware");
 });
 
 
 
 
+connectDB().then(() => {
+    console.log("Database connected successfully");
+    app.listen(3000,()=>console.log("app is running on port 3000"));
 
+}).catch((err) => {
+    console.log("Database connection failed", err);
+    console.error("Database connection failed", err);
+});
 
+// app.use("/user", (req, res, next)=>{
+//     console.log("this is second middleware");
+//     next();
+//     res.send({firstName:'satish', lastName:'verma'});
+// }, (req, res, next)=>{
+//     console.log("this is second middleware");
+//     res.send("this is second middleware");
+// },(req, res, next)=>{
+//     console.log("this is third middleware");
+//     res.send("this is third middleware");
+// },(req, res, next)=>{
+//     console.log("this is fourth middleware");
+//     res.send("this is fourth middleware");
+// });
 
-
-
-
-
-app.listen(3000,()=>console.log("app is running on port 3000"));
+// app.listen(3000,()=>console.log("app is running on port 3000"));
 
 
 
