@@ -4,7 +4,7 @@ const connectDB = require("./config/database");
 const User = require("./models/User");
 const app = express();
 app.use(express.json());
-console.log("process.env.MONGO_URI", process.env.MONGO_URI);
+// console.log("process.env.MONGO_URI", process.env.MONGO_URI);
 app.post("/signup", async (req, res)=>{
     // const userObject = {
     //     firstName: req.body.firstName,
@@ -80,6 +80,39 @@ app.get("/feed", async (req, res)=>{
         });
     });
 
+// delete a user from database using user id
+app.delete("/user", async (req, res)=>{
+    const userId = req.body.userId;
+    // User.findByIdAndDelete(_id:userId)
+    //Below is the short form of above code, we can use either of them
+    User.findByIdAndDelete(userId).then((user)=>{
+        if(!user){
+            return res.status(404).send({
+                message: "User not found"
+            });
+        }else{
+            res.status(200).send({
+                message: "User deleted successfully"
+            });
+        }
+    }).catch((err)=>{
+        res.status(500).send(err);
+    });
+});
+
+app.patch("/user", async (req, res)=>{
+    const userId = req.body.userId;
+    const updateData = req.body;
+   try{
+    const user = await User.findByIdAndUpdate(userId, updateData)
+    console.log("user", user);
+    if(!user){
+        return res.status(404).send("User not found");}
+    res.status(200).send("User updated successfully");
+   } catch(err){
+        res.status(500).send(err);
+    };
+});
 
 
 connectDB().then(() => {
