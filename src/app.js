@@ -1,38 +1,89 @@
 require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/database");
+const {validateSignUpData} = require("./utils/validation");
 const User = require("./models/User");
+const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 // console.log("process.env.MONGO_URI", process.env.MONGO_URI);
+
+
 app.post("/signup", async (req, res) => {
-    // const userObject = {
-    //     firstName: req.body.firstName,
-    //     lastName: req.body.lastName,
-    //     email: req.body.email,
-    //     password: req.body.password,
-    //     age: req.body.age,
-    //     gender: req.body.gender
-    // };
-    const user = new User(req.body);
-    user.save().then((user) => {
-        res.send(user);
+    try {
+        const {firstName, lastName, email, password } = req.body;
+        validateSignUpData(req);
 
-    }).catch((err) => {
-        res.status(500).send(err);
-    });
+        const passwordHash = await bcrypt.hash(password, 10);
+        console.log("hashPassword", passwordHash);
 
+        const user = new User({firstName, lastName, email, password: passwordHash});
+        const savedUser = await user.save();
+
+        res.status(201).send(savedUser);
+    } catch (err) {
+        res.status(400).send({
+            message: err.message
+        });
+    }
+});
+
+app.post("/login", async (req, res)=>{
+    try{
+        const {email, password} = req.body;
+        const user = await User.findOne({email});
+        if(!user){
+            throw new Error("Invalid credencials!");
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if(isPasswordValid){
+            const token = jwt.sign({_id:user._id}, "DEV@Tinder$790");
+            console.log("token", token);
+
+            res.cookie("token", token);
+            res.status(200).send("Login Successfull");
+        } else {
+            throw new Error("Invalid credencials!");
+        }
+    } catch(err){
+        res.status(400).send("Error "+ err.message);
+    }
+})
+
+app.get("/profile", async (req, res)=>{
+   try {
+    const cookies = req.cookies;
+    const token = cookies.token;
+    if(!token){
+        throw new Error("Invalid token");
+    }
+    const decodedMessage = jwt.verify(token, "DEV@Tinder$790");
+    const {_id} = decodedMessage;
+    const user = await User.findById(_id);
+    if(!user){
+        throw new Error("User does not exist");
+    }
+    console.log("decodedMessage", decodedMessage);
+    console.log("cookie", cookies);
+    console.log("user", user);
+    res.status(200).send(user);
+    } catch(err){
+        res.status(400).send("Error is : "+ err.message);
+    }
 });
 
 app.get("/user", async (req, res) => {
-    const email = req.body.email;
-    const user = await User.findOne({ email: email });
+    const email = req.query.email;
+    const user = await User.findOne({ email: email }).select("-password");
     if (!user) {
-        res.status(404).send("user not found");
+        return res.status(404).send({ message: "user not found" });
     } else {
-        res.send(user);
+        return res.send(user);
     }
-})
+});
 
 //this is without error handling
 //  app.get("/feed", async (req, res)=>{
@@ -126,7 +177,7 @@ app.patch("/user/:userId", async (req, res) => {
 
 connectDB().then(() => {
     console.log("Database connected successfully");
-    app.listen(3000, () => console.log("app is running on port 3000"));
+    app.listen(process.env.PORT, () => console.log("app is running on port 3000"));
 
 }).catch((err) => {
     console.log("Database connection failed", err);
