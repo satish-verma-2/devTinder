@@ -1,0 +1,152 @@
+const express = require("express");
+const {validateSignUpData} = require("../utils/validation");
+const User = require("../models/User");
+const bcrypt = require("bcrypt");
+
+const authRouter = express.Router();
+
+
+authRouter.post("/signup", async (req, res) => {
+    try {
+        const {firstName, lastName, email, password } = req.body;
+        validateSignUpData(req);
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        console.log("hashPassword", passwordHash);
+
+        const user = new User({firstName, lastName, email, password: passwordHash});
+        const savedUser = await user.save();
+
+        res.status(201).send(savedUser);
+    } catch (err) {
+        res.status(400).send({
+            message: err.message
+        });
+    }
+});
+
+authRouter.post("/login", async (req, res)=>{
+    try{
+        const {email, password} = req.body;
+        const user = await User.findOne({email});
+        if(!user){
+            throw new Error("Invalid credencials!");
+        }
+        // const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await user.validateThePassword(password);
+        if(isPasswordValid){
+            // const token = await jwt.sign({_id:user._id}, "DEV@Tinder$790", {expiresIn: "1d"});
+            const token = await user.getJWT();
+
+            res.cookie("token", token, {expires: new Date(Date.now() + 8*3600000)});
+            res.status(200).send("Login Successfull");
+        } else {
+            throw new Error("Invalid credencials!");
+        }
+    } catch(err){
+        res.status(400).send("Error "+ err.message);
+    }
+})
+
+
+
+authRouter.get("/user", async (req, res) => {
+    const email = req.query.email;
+    const user = await User.findOne({ email: email }).select("-password");
+    if (!user) {
+        return res.status(404).send({ message: "user not found" });
+    } else {
+        return res.send(user);
+    }
+});
+
+//this is without error handling
+//  authRouter.get("/feed", async (req, res)=>{
+//     const users = await User.find();
+//     res.send(users);
+//  });
+
+//this is with error handling using try catch block
+// use try catch block to handle error in async await
+// .then and .catch can also be used to handle error in async await
+//  but try catch block is more readable and easy to understand
+// when we use try catch block we can also use throw new Error() to throw error and catch it in catch block
+//  but when we use .then and .catch we can only catch the error in catch block and cannot throw new error
+// we use try catch for async await and .then and .catch for promise based code
+// we can use try catch block for promise based code but it is not recommended because it is not readable and easy to understand
+// in simple words .then and .catch ke sath jb async na ho and jb async ho to try catch ka use krna chahiye
+
+// with try catch block
+// authRouter.get("/feed", async (req, res)=>{
+//     try {
+//         const users = await User.find();
+//         if (users.length === 0) {
+//             return res.status(404).send({
+//                 message: "No users found"
+//             });
+//         }else{
+//             res.status(200).send(users);
+//         }
+//     } catch (err) {
+//         res.status(500).send(err);
+//     }
+// });
+
+// with .then and .catch
+authRouter.get("/feed", async (req, res) => {
+    User.find().then((users) => {
+        if (users.length === 0) {
+            return res.status(404).send({
+                message: "No users found"
+            });
+        } else {
+            res.status(200).send(users);
+        }
+    }).catch((err) => {
+        res.status(500).send(err);
+    });
+});
+
+// delete a user from database using user id
+authRouter.delete("/user", async (req, res) => {
+    const userId = req.body.userId;
+    // User.findByIdAndDelete(_id:userId)
+    //Below is the short form of above code, we can use either of them
+    User.findByIdAndDelete(userId).then((user) => {
+        if (!user) {
+            return res.status(404).send({
+                message: "User not found"
+            });
+        } else {
+            res.status(200).send({
+                message: "User deleted successfully"
+            });
+        }
+    }).catch((err) => {
+        res.status(500).send(err);
+    });
+});
+
+authRouter.patch("/user/:userId", async (req, res) => {
+    const userId = req.params.userId;
+    const updateData = req.body;
+    try {
+        const ALLOWED_UPDATES = ["userId", "photoUrl", "about", "gender", "age", "skills"];
+        const isUpdateAllowed = Object.keys(updateData).every((update) => ALLOWED_UPDATES.includes(update));
+        if (!isUpdateAllowed) {
+            return res.status(400).send("Invalid updates");
+        }
+        const user = await User.findByIdAndUpdate(userId, updateData, {
+            runValidators: true, // this will run the validators defined in the schema for the fields being updated
+        })
+        // console.log("user", user);
+        if (!user) {
+            return res.status(404).send("User not found");
+        }
+        res.status(200).send("User updated successfully");
+    } catch (err) {
+        res.status(500).send(err);
+    };
+});
+
+module.exports=authRouter;
