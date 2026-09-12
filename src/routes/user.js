@@ -55,6 +55,55 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
   }
 });
 
+userRouter.get("/user/feed", userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+        let page = parseInt(req.query.page) || 1;
+        let limit = parseInt(req.query.limit) || 10;
+        limit = limit > 100 ? 100 : limit; // limit the maximum number of users to fetch to 100
+        let skip = (page - 1) * limit;
+        const connectionRequests = await ConnectionRequest.find({
+            $or: [{ fromUserId: loggedInUser._id }, { toUserId: loggedInUser._id }],
+        }).select("fromUserId toUserId")
+
+        const hideUsersFromFeed = new Set();
+        connectionRequests.forEach((request) => {
+            hideUsersFromFeed.add(request.fromUserId.toString());
+            hideUsersFromFeed.add(request.toUserId.toString());
+        });
+
+        const feedUsers = await User.find({
+            $and: [
+                {_id: { $nin: Array.from(hideUsersFromFeed) }},
+                {_id: { $ne: loggedInUser._id } }
+
+            ]
+        }).select(USER_SAFE_DATA).skip(skip).limit(limit);;
+
+        res.json({status: 200, message: "data fetched successfully", data: feedUsers});
+
+    } catch (err) {
+        res.status(400).send("Error: " + err.message);
+    }
+})
+
+userRouter.get("/user/request/sent", userAuth, async (req, res) => {
+  try {
+    const loggedInUser = req.user;
+    const sentRequests = await ConnectionRequest.find({
+      fromUserId: loggedInUser._id,
+      status: "interested",
+    }).populate("toUserId", "firstName lastName photoUrl about skills age gender");
+    res.json({
+      status: 200,
+      message: "data fetched successfully",
+      data: sentRequests,
+    });
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+});
+
 userRouter.get("/user", async (req, res) => {
   const email = req.query.email;
   const user = await User.findOne({ email: email }).select("-password");
