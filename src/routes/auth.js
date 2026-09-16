@@ -34,7 +34,7 @@ authRouter.post("/login", async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
-      throw new Error("Invalid credencials!");
+      return res.status(400).send("Invalid credencials!");
     }
     // const isPasswordValid = await bcrypt.compare(password, user.password);
     const isPasswordValid = await user.validateThePassword(password);
@@ -45,9 +45,9 @@ authRouter.post("/login", async (req, res) => {
       res.cookie("token", token, {
         expires: new Date(Date.now() + 8 * 3600000),
       });
-      res.status(200).send(user);
+      res.status(200).json({ message: "Login successful!!", data: user });
     } else {
-      throw new Error("Invalid credencials!");
+      res.status(400).send("Invalid credencials!");
     }
   } catch (err) {
     res.status(400).send("Error " + err.message);
