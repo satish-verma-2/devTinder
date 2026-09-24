@@ -104,7 +104,7 @@ userRouter.get("/user/request/sent", userAuth, async (req, res) => {
   }
 });
 
-userRouter.get("/user", async (req, res) => {
+userRouter.get("/user", userAuth, async (req, res) => {
   const email = req.query.email;
   const user = await User.findOne({ email: email }).select("-password");
   if (!user) {
@@ -147,7 +147,7 @@ userRouter.get("/user", async (req, res) => {
 // });
 
 // with .then and .catch
-userRouter.get("/feed", async (req, res) => {
+userRouter.get("/feed", userAuth, async (req, res) => {
   User.find()
     .then((users) => {
       if (users.length === 0) {
@@ -164,7 +164,7 @@ userRouter.get("/feed", async (req, res) => {
 });
 
 // delete a user from database using user id
-userRouter.delete("/user", async (req, res) => {
+userRouter.delete("/user", userAuth, async (req, res) => {
   const userId = req.body.userId;
   // User.findByIdAndDelete(_id:userId)
   //Below is the short form of above code, we can use either of them
